@@ -1,4 +1,8 @@
 from datetime import datetime
+from settings import connection
+
+
+cursor = connection.cursor()
 
 
 class Base:
@@ -42,6 +46,19 @@ class User(Base):
         self.__username = username
         self.__password = password
         
+    SESSION_USER = None    
+    
+    @staticmethod
+    def create_schema_query():
+        query = """CREATE TABLE IF NOT EXISTS client(id SERIAL PRIMARY KEY,
+                username VARCHAR(20) NOT NULL UNIQUE CHECK(length(username) >= 8) CHECK(length(username) <= 20),
+                password VARCHAR(20) NOT NULL CHECK(length(password) >= 8) CHECK(length(password) <= 20),
+                is_active BOOLEAN NOT NULL DEFAULT True,
+                created_date TIMESTAMP NOT NULL DEFAULT now(),
+                updated_date TIMESTAMP NOT NULL DEFAULT now());"""
+        cursor.execute(query=query)
+        connection.commit()
+    
     @property
     def username(self) -> str:
         return str(self.__username)
@@ -64,7 +81,30 @@ class User(Base):
         else:
             print("Your password len should be from 8 to 20 symboals")
 
+    def check_password(self, password):
+        if self.__password == password:
+            return True
+        return False
 
+    def create(self):
+        query = f"""INSERT INTO client(username, password) VALUES ('{self.__username}', '{self.__password}');"""
+        cursor.execute(query=query)
+        connection.commit()
+
+    @staticmethod
+    def get_or_none(username):
+        query = f"""SELECT * FROM client WHERE username = '{username}';"""
+        cursor.execute(query=query)
+        user_data = cursor.fetchone()
+        if user_data is not None:
+            user = User(
+                username=user_data[1],
+                password=user_data[2]
+            )
+            user.id = user_data[0]
+            return user
+        
+    
 class Contact(Base):
     
     def __init__(self, name, user_id: int) -> None:
@@ -72,6 +112,18 @@ class Contact(Base):
         self.__name = name
         self.__user_id = user_id
         
+    @staticmethod
+    def create_schema_query():
+        query = """CREATE TABLE IF NOT EXISTS contact(
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(50) NOT NULL,
+            user_id INTEGER NOT NULL REFERENCES client (id),
+            is_active BOOLEAN NOT NULL DEFAULT True,
+            created_date TIMESTAMP NOT NULL DEFAULT now(),
+            updated_date TIMESTAMP NOT NULL DEFAULT now());"""
+        cursor.execute(query=query)
+        connection.commit()
+
     @property
     def name(self) -> str:
         return str(self.__name)
@@ -88,22 +140,40 @@ class Contact(Base):
     def user_id(self, user_id: int) -> None:
         self.__user_id = user_id
         
+    def create(self):
+        query = f"""INSERT INTO contact(name, user_id) VALUES ('{self.__name}', '{self.__user_id}');"""
+        cursor.execute(query=query)
+        connection.commit()
+        
     
 class PhoneNumber(Base):
     
-    def __init__(self, phone_number, contact_id) -> None:
+    def __init__(self, number, contact_id) -> None:
         super().__init__()
-        self.__phone_number = phone_number
+        self.__number = number
         self.__contact_id = contact_id
-            
+        
+    @staticmethod
+    def create_schema_query():
+        query = """CREATE TABLE IF NOT EXISTS phone_number(
+            id SERIAL PRIMARY KEY, 
+            number VARCHAR(10) NOT NULL CHECK (length(number) = 10),
+            contact_id INTEGER NOT NULL REFERENCES contact (id),
+            is_active BOOLEAN NOT NULL DEFAULT True,
+            created_date TIMESTAMP NOT NULL DEFAULT now(),
+            updated_date TIMESTAMP NOT NULL DEFAULT now());
+            """
+        cursor.execute(query=query)
+        connection.commit()
+
     @property
-    def phone_number(self) -> str:
-        return str(self.__phone_number)
+    def number(self) -> str:
+        return str(self.__number)
     
-    @phone_number.setter
-    def name(self, phone_number: str) -> None:
-        if len(phone_number) == 10 and phone_number.startswith('0') and phone_number.isdigit():
-            self.__phone_number = phone_number
+    @number.setter
+    def number(self, number: str) -> None:
+        if len(number) == 10 and number.startswith('0') and number.isdigit():
+            self.__number = number
         else:
             print("Inccorect phone number format!")
     
@@ -114,3 +184,8 @@ class PhoneNumber(Base):
     @contact_id.setter
     def contact_id(self, contact_id: int) -> None:
         self.__contact_id = contact_id
+
+    def create(self):
+        query = f"""INSERT INTO phone_number(number, contact_id) VALUES ('{self.__number}', '{self.__contact_id})';"""
+        cursor.execute(query=query)
+        connection.commit()
