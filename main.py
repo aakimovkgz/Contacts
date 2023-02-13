@@ -1,4 +1,5 @@
-from views import migrations, sing_up, login, get_current_user
+from views import (migrations, sing_up, login, get_current_user, 
+                   create_contact, get_contact, show_contacts, delete_contact)
 
 
 def main():
@@ -13,16 +14,22 @@ def main():
             elif action == '2':
                 sing_up()
             elif action == '3':
-                print("Goodbye! See you soon!")
+                print("Goodbye! See you soon!\n")
                 break
             else:
-                print("Inccorect command!")
+                print("Inccorect command!\n")
         else:
-            action = input("Enter 1 to create contact\nEnter 2 to exit\n")
+            action = input("Enter 1 to create contact\nEnter 2 to find contact\nEnter 3 to get all contacts\nEnter 4 to delete contact\nEnter 5 to exit\n")
             if action == '1':
-                pass
+                create_contact()
             elif action == '2':
-                print(f"Goodbye! See you soon {user.username}!")
+                get_contact()
+            elif action == '3':
+                show_contacts()
+            elif action == '4':
+                delete_contact()
+            elif action == '5':
+                print(f"Goodbye! See you soon {user.username}!\n")
                 break             
             else:
                 print("Inccorect command!")

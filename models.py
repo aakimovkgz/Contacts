@@ -86,10 +86,12 @@ class User(Base):
             return True
         return False
 
-    def create(self):
-        query = f"""INSERT INTO client(username, password) VALUES ('{self.__username}', '{self.__password}');"""
+    def create(self) -> int:
+        query = f"""INSERT INTO client(username, password) VALUES ('{self.__username}', '{self.__password}') RETURNING id;"""
         cursor.execute(query=query)
         connection.commit()
+        id = cursor.fetchone()[0]
+        return id
 
     @staticmethod
     def get_or_none(username):
@@ -139,12 +141,45 @@ class Contact(Base):
     @user_id.setter
     def user_id(self, user_id: int) -> None:
         self.__user_id = user_id
-        
-    def create(self):
-        query = f"""INSERT INTO contact(name, user_id) VALUES ('{self.__name}', '{self.__user_id}');"""
+    
+    @staticmethod
+    def all(user_id: int) -> list:
+        query = f"""SELECT name, string_agg(number, ', ') as phone_numbers FROM contact FULL JOIN phone_number ON contact.id = phone_number.contact_id WHERE contact.user_id = {user_id} GROUP BY name;"""
         cursor.execute(query=query)
-        connection.commit()
+        contacts = cursor.fetchall()
+        return contacts
+    
+    @staticmethod
+    def get_or_none(name: str, user_id: int) -> tuple or None:
+        query = f"""SELECT name, string_agg(number, ', ') as phone_numbers FROM contact FULL JOIN phone_number ON contact.id = phone_number.contact_id WHERE contact.name='{name}' and contact.user_id={user_id} GROUP BY name;"""
+        cursor.execute(query=query)
+        contact = cursor.fetchone()
+        return contact
+      
+    @staticmethod 
+    def delete(name: str, user_id: int) -> bool:
+        query_to_get_contact = f"""SELECT id FROM contact WHERE name = '{name}' and user_id={user_id};"""
+        cursor.execute(query_to_get_contact)
+        contact = cursor.fetchone()
+        if contact is not None:
+            contact_id = contact[0]
+            query_to_delete_contact_phone_numbers = f"""DELETE FROM phone_number WHERE contact_id={contact_id};"""
+            cursor.execute(query_to_delete_contact_phone_numbers)
+            query_to_delete_contact = f"""DELETE FROM contact WHERE id={contact_id};"""
+            cursor.execute(query_to_delete_contact)
+            connection.commit()
+            return True
+        return False
         
+    def create(self) -> int:
+        query = f"""INSERT INTO contact(name, user_id) VALUES ('{self.__name}', '{self.__user_id}') RETURNING id;"""
+        cursor.execute(query=query)
+        id = cursor.fetchone()[0]
+        connection.commit()
+        return id
+
+        
+    
     
 class PhoneNumber(Base):
     
@@ -185,7 +220,16 @@ class PhoneNumber(Base):
     def contact_id(self, contact_id: int) -> None:
         self.__contact_id = contact_id
 
-    def create(self):
-        query = f"""INSERT INTO phone_number(number, contact_id) VALUES ('{self.__number}', '{self.__contact_id})';"""
+    @staticmethod
+    def is_valid_number(number: str) -> bool:
+        if len(number) == 10 and number.startswith('0') and number.isdigit():
+            return True
+        else:
+            return False
+
+    def create(self) -> int:
+        query = f"""INSERT INTO phone_number(number, contact_id) VALUES ('{self.__number}', '{self.__contact_id}') RETURNING id;"""
         cursor.execute(query=query)
+        id = cursor.fetchone()[0]
         connection.commit()
+        return id
